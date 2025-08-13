@@ -1,0 +1,78 @@
+   <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Kegiatan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Manajemen Jadwal Kegiatan</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flashes">
+            {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+        {% endwith %}
+
+        <h2>Tambah Kegiatan Baru</h2>
+        <form action="{{ url_for('tambah_kegiatan') }}" method="POST">
+            <div>
+                <label for="nama_kegiatan">Nama Kegiatan:</label>
+                <input type="text" id="nama_kegiatan" name="nama_kegiatan" required>
+            </div>
+            <div>
+                <label for="tanggal">Tanggal:</label>
+                <input type="date" id="tanggal" name="tanggal" required>
+            </div>
+            <div>
+                <label for="lokasi">Lokasi:</label>
+                <input type="text" id="lokasi" name="lokasi" required>
+            </div>
+            <div>
+                <label for="deskripsi">Deskripsi:</label>
+                <textarea id="deskripsi" name="deskripsi"></textarea>
+            </div>
+            <button type="submit">Tambah</button>
+        </form>
+
+        <h2>Daftar Kegiatan</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nama Kegiatan</th>
+                    <th>Tanggal</th>
+                    <th>Lokasi</th>
+                    <th>Deskripsi</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for kegiatan in kegiatan_list %}
+                <tr>
+                    <td>{{ kegiatan.nama_kegiatan }}</td>
+                    <td>{{ kegiatan.tanggal }}</td>
+                    <td>{{ kegiatan.lokasi }}</td>
+                    <td>{{ kegiatan.deskripsi }}</td>
+                    <td class="action-buttons">
+                        <a href="{{ url_for('edit_kegiatan', id=kegiatan.id) }}" class="btn edit-btn">Edit</a>
+                        <form action="{{ url_for('hapus_kegiatan', id=kegiatan.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn delete-btn" onclick="return confirm('Apakah Anda yakin ingin menghapus kegiatan ini?');">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">Belum ada jadwal kegiatan.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{{ url_for('dashboard') }}" class="btn">Kembali ke Dashboard</a>
+    </div>
+</body>
+</html>

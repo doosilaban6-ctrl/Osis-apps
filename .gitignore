@@ -1,0 +1,8 @@
+# Direktori virtual environment
+venv/
+
+# File database SQLite
+*.db
+
+# Direktori cache Python
+__pycache__/

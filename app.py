@@ -1,124 +1,196 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
-from functools import wraps
 
+import os
+from flask import Flask, render_template, redirect, url_for, request, flash
+from flask_login import LoginManager, login_user, current_user, logout_user, login_required
+from models import db, User, Anggota, Kegiatan
+
+# Konfigurasi Aplikasi
 app = Flask(__name__)
-app.secret_key = "ini_rahasia_banget"
-
-# Config SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todolist.db'
+app.config['SECRET_KEY'] = 'kunci-rahasia-anda'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///osis.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+# Inisialisasi Database
+db.init_app(app)
 
-# Model User
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
+# Konfigurasi Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-# Model Task
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    task = db.Column(db.String(200), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-# Buat decorator login_required
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash("Silakan login dulu ya!", "warning")
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        username = request.form.get('username')
-        password = request.form.get('password')
-        if username and password:
-            existing_user = User.query.filter_by(username=username).first()
-            if existing_user:
-                flash("Username sudah dipakai!", "danger")
-            else:
-                new_user = User(username=username, password=password)
-                db.session.add(new_user)
-                db.session.commit()
-                flash("Registrasi berhasil! Silakan login.", "success")
-                return redirect(url_for('login'))
-        else:
-            flash("Username dan password harus diisi!", "danger")
-    return render_template("register.html")
-
-@app.route("/login", methods=["GET", "POST"])
+# Rute Halaman Login
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == "POST":
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username, password=password).first()
-        if user:
-            session['user_id'] = user.id
-            session['username'] = user.username
-            flash("Login berhasil!", "success")
-            return redirect(url_for('index'))
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('dashboard'))
         else:
-            flash("Username atau password salah!", "danger")
-    return render_template("login.html")
+            flash('Login gagal. Periksa username dan password Anda.', 'error')
+    
+    return render_template('login.html')
 
-@app.route("/logout")
+# Rute Halaman Registrasi
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        user_exist = User.query.filter_by(username=username).first()
+        if user_exist:
+            flash('Username sudah digunakan. Silakan pilih username lain.', 'error')
+        else:
+            new_user = User(username=username)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registrasi berhasil! Silakan login.', 'success')
+            return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+# Rute Halaman Dashboard
+@app.route('/')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
+
+# Rute Logout
+@app.route('/logout')
+@login_required
 def logout():
-    session.clear()
-    flash("Kamu sudah logout.", "info")
+    logout_user()
     return redirect(url_for('login'))
 
-@app.route("/", methods=["GET", "POST"])
+# --- Manajemen Anggota ---
+@app.route('/anggota')
 @login_required
-def index():
-    user_id = session['user_id']
-    if request.method == "POST":
-        task_text = request.form.get("task")
-        if task_text:
-            new_task = Task(task=task_text, user_id=user_id)
-            db.session.add(new_task)
-            db.session.commit()
-        return redirect(url_for("index"))
-    tasks = Task.query.filter_by(user_id=user_id).order_by(Task.created_at.desc()).all()
-    return render_template("index.html", tasks=tasks)
+def daftar_anggota():
+    anggota_list = Anggota.query.all()
+    return render_template('anggota.html', anggota_list=anggota_list)
 
-@app.route("/edit/<int:task_id>", methods=["GET", "POST"])
+@app.route('/anggota/tambah', methods=['POST'])
 @login_required
-def edit(task_id):
-    task = Task.query.get_or_404(task_id)
-    if task.user_id != session['user_id']:
-        flash("Kamu tidak boleh mengedit tugas ini.", "danger")
-        return redirect(url_for('index'))
+def tambah_anggota():
+    nama = request.form.get('nama')
+    jabatan = request.form.get('jabatan')
+    kelas = request.form.get('kelas')
+    
+    if nama and jabatan and kelas:
+        anggota_baru = Anggota(nama=nama, jabatan=jabatan, kelas=kelas)
+        db.session.add(anggota_baru)
+        db.session.commit()
+        flash('Data anggota berhasil ditambahkan.', 'success')
+    else:
+        flash('Semua kolom harus diisi.', 'error')
+        
+    return redirect(url_for('daftar_anggota'))
 
-    if request.method == "POST":
-        new_task = request.form.get("task")
-        if new_task:
-            task.task = new_task
-            db.session.commit()
-            return redirect(url_for('index'))
-    return render_template("edit.html", task=task)
-
-@app.route("/delete/<int:task_id>")
+@app.route('/anggota/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
-def delete(task_id):
-    task = Task.query.get_or_404(task_id)
-    if task.user_id != session['user_id']:
-        flash("Kamu tidak boleh menghapus tugas ini.", "danger")
-        return redirect(url_for('index'))
+def edit_anggota(id):
+    anggota = Anggota.query.get_or_404(id)
+    if request.method == 'POST':
+        anggota.nama = request.form.get('nama')
+        anggota.jabatan = request.form.get('jabatan')
+        anggota.kelas = request.form.get('kelas')
+        db.session.commit()
+        flash('Data anggota berhasil diperbarui.', 'success')
+        return redirect(url_for('daftar_anggota'))
+    
+    return render_template('edit_anggota.html', anggota=anggota)
 
-    db.session.delete(task)
+@app.route('/anggota/hapus/<int:id>', methods=['POST'])
+@login_required
+def hapus_anggota(id):
+    anggota = Anggota.query.get_or_404(id)
+    db.session.delete(anggota)
     db.session.commit()
-    return redirect(url_for('index'))
+    flash('Data anggota berhasil dihapus.', 'success')
+    return redirect(url_for('daftar_anggota'))
 
-if __name__ == "__main__":
+# --- Manajemen Kegiatan ---
+@app.route('/kegiatan')
+@login_required
+def daftar_kegiatan():
+    kegiatan_list = Kegiatan.query.all()
+    return render_template('kegiatan.html', kegiatan_list=kegiatan_list)
+
+@app.route('/kegiatan/tambah', methods=['POST'])
+@login_required
+def tambah_kegiatan():
+    nama_kegiatan = request.form.get('nama_kegiatan')
+    tanggal = request.form.get('tanggal')
+    lokasi = request.form.get('lokasi')
+    deskripsi = request.form.get('deskripsi')
+    
+    if nama_kegiatan and tanggal and lokasi:
+        kegiatan_baru = Kegiatan(
+            nama_kegiatan=nama_kegiatan,
+            tanggal=tanggal,
+            lokasi=lokasi,
+            deskripsi=deskripsi
+        )
+        db.session.add(kegiatan_baru)
+        db.session.commit()
+        flash('Kegiatan berhasil ditambahkan.', 'success')
+    else:
+        flash('Nama, tanggal, dan lokasi kegiatan harus diisi.', 'error')
+        
+    return redirect(url_for('daftar_kegiatan'))
+
+@app.route('/kegiatan/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_kegiatan(id):
+    kegiatan = Kegiatan.query.get_or_404(id)
+    if request.method == 'POST':
+        kegiatan.nama_kegiatan = request.form.get('nama_kegiatan')
+        kegiatan.tanggal = request.form.get('tanggal')
+        kegiatan.lokasi = request.form.get('lokasi')
+        kegiatan.deskripsi = request.form.get('deskripsi')
+        db.session.commit()
+        flash('Data kegiatan berhasil diperbarui.', 'success')
+        return redirect(url_for('daftar_kegiatan'))
+    
+    return render_template('edit_kegiatan.html', kegiatan=kegiatan)
+
+@app.route('/kegiatan/hapus/<int:id>', methods=['POST'])
+@login_required
+def hapus_kegiatan(id):
+    kegiatan = Kegiatan.query.get_or_404(id)
+    db.session.delete(kegiatan)
+    db.session.commit()
+    flash('Data kegiatan berhasil dihapus.', 'success')
+    return redirect(url_for('daftar_kegiatan'))
+
+# Fungsi untuk membuat admin pertama kali (jalankan hanya sekali!)
+def create_first_admin():
     with app.app_context():
-        db.create_all()  # buat database dan tabel jika belum ada
-    app.run(debug=True,port=5001)
+        db.create_all()
 
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin')
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+            print('Admin pertama berhasil dibuat. Username: admin, Password: admin123')
+
+# Jalankan Aplikasi
+if __name__ == '__main__':
+    create_first_admin()
+    app.run(debug=True)
