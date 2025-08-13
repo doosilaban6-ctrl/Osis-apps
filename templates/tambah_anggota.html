@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Anggota</title>
+    <title>Tambah Anggota OSIS</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
         <a href="{{ url_for('anggota') }}" class="back-btn">&#8592; Kembali</a>
-        <h1>Edit Data Anggota</h1>
-        <form method="POST" action="{{ url_for('edit_anggota', anggota_id=anggota.id) }}">
+        <h1>Tambah Anggota OSIS Baru</h1>
+        <form method="POST" action="{{ url_for('tambah_anggota') }}">
             <div>
-                <label for="nama">Nama:</label>
-                <input type="text" id="nama" name="nama" value="{{ anggota.nama }}" required>
+                <label for="nama">Nama Lengkap:</label>
+                <input type="text" id="nama" name="nama" required>
             </div>
             <div>
                 <label for="jabatan">Jabatan:</label>
-                <input type="text" id="jabatan" name="jabatan" value="{{ anggota.jabatan }}" required>
+                <input type="text" id="jabatan" name="jabatan" required>
             </div>
             <div>
                 <label for="kelas">Kelas:</label>
-                <input type="text" id="kelas" name="kelas" value="{{ anggota.kelas }}" required>
+                <input type="text" id="kelas" name="kelas" required>
             </div>
             <div>
                 <label for="email">Email:</label>
-                <input type="email" id="email" name="email" value="{{ anggota.email }}" required>
+                <input type="email" id="email" name="email" required>
             </div>
-            <button type="submit" class="save-btn">Simpan Perubahan</button>
+            <button type="submit" class="btn add-btn">Simpan Anggota</button>
         </form>
     </div>
 </body>

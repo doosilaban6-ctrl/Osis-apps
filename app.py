@@ -1,8 +1,8 @@
-
 import os
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
-from models import db, User, Anggota, Kegiatan
+from models import db, User, Anggota
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Konfigurasi Aplikasi
 app = Flask(__name__)
@@ -46,22 +46,24 @@ def login():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-
+    
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-
-        user_exist = User.query.filter_by(username=username).first()
-        if user_exist:
-            flash('Username sudah digunakan. Silakan pilih username lain.', 'error')
-        else:
-            new_user = User(username=username)
-            new_user.set_password(password)
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registrasi berhasil! Silakan login.', 'success')
-            return redirect(url_for('login'))
-    
+        
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Username sudah digunakan. Silakan pilih yang lain.', 'error')
+            return redirect(url_for('register'))
+            
+        new_user = User(username=username)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Registrasi berhasil! Silakan login.', 'success')
+        return redirect(url_for('login'))
+        
     return render_template('register.html')
 
 # Rute Halaman Dashboard
@@ -77,106 +79,57 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# --- Manajemen Anggota ---
-@app.route('/anggota')
+# Rute Halaman Manajemen Anggota (Termasuk Pencarian)
+@app.route('/anggota', methods=['GET'])
 @login_required
-def daftar_anggota():
-    anggota_list = Anggota.query.all()
-    return render_template('anggota.html', anggota_list=anggota_list)
+def anggota():
+    search_query = request.args.get('q')
+    if search_query:
+        anggota_list = Anggota.query.filter(
+            Anggota.nama.like(f'%{search_query}%') |
+            Anggota.jabatan.like(f'%{search_query}%') |
+            Anggota.kelas.like(f'%{search_query}%')
+        ).all()
+    else:
+        anggota_list = Anggota.query.all()
+    
+    return render_template('anggota.html', anggota_list=anggota_list, search_query=search_query)
 
-@app.route('/anggota/tambah', methods=['POST'])
+# Rute Halaman Tambah Anggota (BARU!)
+@app.route('/tambah_anggota', methods=['GET', 'POST'])
 @login_required
 def tambah_anggota():
-    nama = request.form.get('nama')
-    jabatan = request.form.get('jabatan')
-    kelas = request.form.get('kelas')
-    
-    if nama and jabatan and kelas:
-        anggota_baru = Anggota(nama=nama, jabatan=jabatan, kelas=kelas)
-        db.session.add(anggota_baru)
-        db.session.commit()
-        flash('Data anggota berhasil ditambahkan.', 'success')
-    else:
-        flash('Semua kolom harus diisi.', 'error')
-        
-    return redirect(url_for('daftar_anggota'))
-
-@app.route('/anggota/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def edit_anggota(id):
-    anggota = Anggota.query.get_or_404(id)
     if request.method == 'POST':
-        anggota.nama = request.form.get('nama')
-        anggota.jabatan = request.form.get('jabatan')
-        anggota.kelas = request.form.get('kelas')
-        db.session.commit()
-        flash('Data anggota berhasil diperbarui.', 'success')
-        return redirect(url_for('daftar_anggota'))
-    
-    return render_template('edit_anggota.html', anggota=anggota)
-
-@app.route('/anggota/hapus/<int:id>', methods=['POST'])
-@login_required
-def hapus_anggota(id):
-    anggota = Anggota.query.get_or_404(id)
-    db.session.delete(anggota)
-    db.session.commit()
-    flash('Data anggota berhasil dihapus.', 'success')
-    return redirect(url_for('daftar_anggota'))
-
-# --- Manajemen Kegiatan ---
-@app.route('/kegiatan')
-@login_required
-def daftar_kegiatan():
-    kegiatan_list = Kegiatan.query.all()
-    return render_template('kegiatan.html', kegiatan_list=kegiatan_list)
-
-@app.route('/kegiatan/tambah', methods=['POST'])
-@login_required
-def tambah_kegiatan():
-    nama_kegiatan = request.form.get('nama_kegiatan')
-    tanggal = request.form.get('tanggal')
-    lokasi = request.form.get('lokasi')
-    deskripsi = request.form.get('deskripsi')
-    
-    if nama_kegiatan and tanggal and lokasi:
-        kegiatan_baru = Kegiatan(
-            nama_kegiatan=nama_kegiatan,
-            tanggal=tanggal,
-            lokasi=lokasi,
-            deskripsi=deskripsi
-        )
-        db.session.add(kegiatan_baru)
-        db.session.commit()
-        flash('Kegiatan berhasil ditambahkan.', 'success')
-    else:
-        flash('Nama, tanggal, dan lokasi kegiatan harus diisi.', 'error')
+        nama = request.form.get('nama')
+        jabatan = request.form.get('jabatan')
+        kelas = request.form.get('kelas')
+        email = request.form.get('email')
         
-    return redirect(url_for('daftar_kegiatan'))
-
-@app.route('/kegiatan/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
-def edit_kegiatan(id):
-    kegiatan = Kegiatan.query.get_or_404(id)
-    if request.method == 'POST':
-        kegiatan.nama_kegiatan = request.form.get('nama_kegiatan')
-        kegiatan.tanggal = request.form.get('tanggal')
-        kegiatan.lokasi = request.form.get('lokasi')
-        kegiatan.deskripsi = request.form.get('deskripsi')
+        new_anggota = Anggota(nama=nama, jabatan=jabatan, kelas=kelas, email=email)
+        db.session.add(new_anggota)
         db.session.commit()
-        flash('Data kegiatan berhasil diperbarui.', 'success')
-        return redirect(url_for('daftar_kegiatan'))
+        
+        flash('Anggota baru berhasil ditambahkan!', 'success')
+        return redirect(url_for('anggota'))
     
-    return render_template('edit_kegiatan.html', kegiatan=kegiatan)
+    return render_template('tambah_anggota.html')
 
-@app.route('/kegiatan/hapus/<int:id>', methods=['POST'])
+# Rute Halaman Edit Anggota
+@app.route('/edit_anggota/<int:anggota_id>', methods=['GET', 'POST'])
 @login_required
-def hapus_kegiatan(id):
-    kegiatan = Kegiatan.query.get_or_404(id)
-    db.session.delete(kegiatan)
-    db.session.commit()
-    flash('Data kegiatan berhasil dihapus.', 'success')
-    return redirect(url_for('daftar_kegiatan'))
+def edit_anggota(anggota_id):
+    anggota_to_edit = Anggota.query.get_or_404(anggota_id)
+    
+    if request.method == 'POST':
+        anggota_to_edit.nama = request.form.get('nama')
+        anggota_to_edit.jabatan = request.form.get('jabatan')
+        anggota_to_edit.kelas = request.form.get('kelas')
+        anggota_to_edit.email = request.form.get('email')
+        db.session.commit()
+        flash('Data anggota berhasil diperbarui!', 'success')
+        return redirect(url_for('anggota'))
+    
+    return render_template('edit_anggota.html', anggota=anggota_to_edit)
 
 # Fungsi untuk membuat admin pertama kali (jalankan hanya sekali!)
 def create_first_admin():
@@ -189,6 +142,18 @@ def create_first_admin():
             db.session.add(admin)
             db.session.commit()
             print('Admin pertama berhasil dibuat. Username: admin, Password: admin123')
+
+        if not Anggota.query.first():
+            data_anggota = [
+                Anggota(nama="Budi Santoso", jabatan="Ketua OSIS", kelas="XI IPA 1", email="budi@osis.sch.id"),
+                Anggota(nama="Dewi Permata", jabatan="Wakil Ketua OSIS", kelas="XI IPS 2", email="dewi@osis.sch.id"),
+                Anggota(nama="Agus Salim", jabatan="Sekretaris", kelas="X MIPA 3", email="agus@osis.sch.id"),
+                Anggota(nama="Siti Aminah", jabatan="Bendahara", kelas="X MIPA 1", email="siti@osis.sch.id"),
+            ]
+            for anggota_baru in data_anggota:
+                db.session.add(anggota_baru)
+            db.session.commit()
+            print("Contoh data anggota berhasil ditambahkan.")
 
 # Jalankan Aplikasi
 if __name__ == '__main__':

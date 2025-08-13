@@ -6,8 +6,8 @@ db = SQLAlchemy()
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -19,11 +19,5 @@ class Anggota(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nama = db.Column(db.String(100), nullable=False)
     jabatan = db.Column(db.String(100), nullable=False)
-    kelas = db.Column(db.String(10), nullable=False)
-
-class Kegiatan(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nama_kegiatan = db.Column(db.String(200), nullable=False)
-    tanggal = db.Column(db.String(50), nullable=False)
-    lokasi = db.Column(db.String(100), nullable=False)
-    deskripsi = db.Column(db.Text, nullable=True)
+    kelas = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(100), nullable=True)

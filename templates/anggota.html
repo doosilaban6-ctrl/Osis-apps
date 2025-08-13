@@ -3,12 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Anggota</title>
+    <title>Manajemen Anggota OSIS</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>Manajemen Data Anggota</h1>
+    <div class="anggota-container">
+        <div class="top-nav">
+            <a href="{{ url_for('dashboard') }}" class="back-btn">&#8592; Kembali</a>
+            <a href="{{ url_for('tambah_anggota') }}" class="btn add-btn">Tambah Anggota</a>
+        </div>
+        <div class="header">
+            <h1>Daftar Anggota OSIS</h1>
+            <form action="{{ url_for('anggota') }}" method="get" class="search-form">
+                <input type="text" name="q" placeholder="Cari nama, jabatan, atau kelas..." value="{{ search_query or '' }}">
+                <button type="submit" class="search-btn">Cari</button>
+            </form>
+        </div>
+        
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <ul class="flashes">
@@ -19,54 +30,24 @@
         {% endif %}
         {% endwith %}
 
-        <h2>Tambah Anggota Baru</h2>
-        <form action="{{ url_for('tambah_anggota') }}" method="POST">
-            <div>
-                <label for="nama">Nama:</label>
-                <input type="text" id="nama" name="nama" required>
+        {% if anggota_list %}
+        <div class="anggota-grid">
+            {% for anggota in anggota_list %}
+            <div class="anggota-card">
+                <div class="anggota-avatar">
+                    <img src="https://via.placeholder.com/150" alt="Avatar {{ anggota.nama }}">
+                </div>
+                <h3>{{ anggota.nama }}</h3>
+                <p><strong>Jabatan:</strong> {{ anggota.jabatan }}</p>
+                <p><strong>Kelas:</strong> {{ anggota.kelas }}</p>
+                <p><strong>Email:</strong> {{ anggota.email }}</p>
+                <a href="{{ url_for('edit_anggota', anggota_id=anggota.id) }}" class="edit-btn">Edit Anggota</a>
             </div>
-            <div>
-                <label for="jabatan">Jabatan:</label>
-                <input type="text" id="jabatan" name="jabatan" required>
-            </div>
-            <div>
-                <label for="kelas">Kelas:</label>
-                <input type="text" id="kelas" name="kelas" required>
-            </div>
-            <button type="submit">Tambah</button>
-        </form>
-
-        <h2>Daftar Anggota</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Nama</th>
-                    <th>Jabatan</th>
-                    <th>Kelas</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for anggota in anggota_list %}
-                <tr>
-                    <td>{{ anggota.nama }}</td>
-                    <td>{{ anggota.jabatan }}</td>
-                    <td>{{ anggota.kelas }}</td>
-                    <td class="action-buttons">
-                        <a href="{{ url_for('edit_anggota', id=anggota.id) }}" class="btn edit-btn">Edit</a>
-                        <form action="{{ url_for('hapus_anggota', id=anggota.id) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn delete-btn" onclick="return confirm('Apakah Anda yakin ingin menghapus anggota ini?');">Hapus</button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4">Belum ada data anggota.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <a href="{{ url_for('dashboard') }}" class="btn">Kembali ke Dashboard</a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-results">Tidak ada anggota yang ditemukan.</p>
+        {% endif %}
     </div>
 </body>
 </html>

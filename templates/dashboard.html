@@ -10,11 +10,12 @@
     <div class="container">
         <h1>Selamat Datang di Dashboard OSIS</h1>
         <p>Halo, {{ current_user.username }}!</p>
-        <div class="menu">
-            <a href="{{ url_for('daftar_anggota') }}" class="btn">Manajemen Anggota</a>
-            <a href="{{ url_for('daftar_kegiatan') }}" class="btn">Manajemen Kegiatan</a>
+        <p>Anda bisa memulai mengelola data dengan menekan tombol di bawah ini.</p>
+        <div class="button-group">
+            <a href="{{ url_for('anggota') }}" class="btn">Kelola Anggota OSIS</a>
+            <a href="{{ url_for('tambah_anggota') }}" class="btn add-btn">Tambah Anggota Baru</a>
         </div>
-        <a href="{{ url_for('logout') }}" class="btn">Logout</a>
+        <a href="{{ url_for('logout') }}" class="btn logout-btn">Logout</a>
     </div>
 </body>
 </html>
